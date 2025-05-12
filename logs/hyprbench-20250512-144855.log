@@ -1,0 +1,11 @@
+[2025-05-12 14:48:55] [SUCCESS] Logging to: ./logs/hyprbench-20250512-144855.log
+[2025-05-12 14:48:55] [SUCCESS] Temporary directory created: hyprbench.fSLJZZ
+[2025-05-12 14:48:55] [INFO] HyprBench Script v0.1.0 started.
+[2025-05-12 14:48:55] [INFO] -----------------------------------------------------
+[2025-05-12 14:48:55] [WARN] This script may require root or sudo privileges for full functionality (e.g., dmidecode, some lsblk features).
+[2025-05-12 14:48:55] [WARN] Some information might be incomplete. Consider running with sudo.
+[2025-05-12 14:48:55] [HEADER] \n------------------------------\n  Checking Core Dependencies\n------------------------------
+[2025-05-12 14:48:55] [ERROR] Dependency missing: 'lscpu'. Please install 'lscpu'.
+[2025-05-12 14:48:55] [INFO] Example: sudo apt install lscpu OR sudo yum install lscpu
+[2025-05-12 14:48:55] [INFO] Cleaning up temporary files...
+[2025-05-12 14:48:55] [SUCCESS] Temporary directory hyprbench.fSLJZZ removed.
