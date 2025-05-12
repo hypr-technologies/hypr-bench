@@ -13,7 +13,7 @@ REQUIRED_COMMANDS=(
     speedtest fast                                  # Network Speed (at least one)
 )
 # Corresponding package names for hints (order matters for the hint message)
-DEBIAN_PACKAGES="util-linux procps-ng dmidecode lsb-release pciutils coreutils sysbench fio jq git php-cli php-xml stress-ng curl iperf3 bc speedtest-cli nodejs npm"
+DEBIAN_PACKAGES="util-linux procps dmidecode lsb-release pciutils coreutils sysbench fio jq git php-cli php-xml stress-ng curl iperf3 bc speedtest-cli nodejs npm"
 FEDORA_PACKAGES="util-linux procps-ng dmidecode lsb-release pciutils coreutils sysbench fio jq git php-cli php-xml stress-ng curl iperf3 bc speedtest nodejs npm"
 
 # --- Functions ---

@@ -9,6 +9,7 @@
 #                  or zero if no command exited with a non-zero status.
 # set -u: Treat unset variables as an error when substituting.
 set -eo pipefail -u
+echo "[INFO] HyprBench script starting execution..." >&2
 
 # --- Constants & Variables ---
 readonly SCRIPT_VERSION="0.1.0"
@@ -87,19 +88,47 @@ log_header() {
 
 
 # --- Dependency Check Function ---
-# Checks if a command is available in PATH.
-# $1: command_name
-# $2: package_name_if_different (optional)
+# Checks if a command/feature is available. Logs errors and adds to MISSING_DEPENDENCIES array on failure.
+# $1: command_name (or feature name like 'php-xml')
+# $2: package_name_if_different (optional, for installation hint)
+# Returns: 0 on success, 1 on failure.
 check_dependency() {
-    local cmd_name="$1"
-    local pkg_name="${2:-$1}" # Use cmd_name as pkg_name if not provided
+    local command_name="$1"
+    local package_name="${2:-$command_name}" # Use command name if package name not provided
 
-    if ! command -v "${cmd_name}" &> /dev/null; then
-        log_error "Dependency missing: '${cmd_name}'. Please install '${pkg_name}'."
-        log_info "Example: sudo apt install ${pkg_name} OR sudo yum install ${pkg_name}"
-        exit 1
+    # Special check for php-xml extension
+    if [[ "$command_name" == "php-xml" ]]; then
+        # Check if the main 'php' command exists first
+        if ! command -v php &> /dev/null; then
+            log_error "Dependency check for 'php-xml' failed: 'php' command not found."
+            log_info "Please install PHP first (e.g., 'php-cli')."
+            # Add php as potentially missing if it wasn't explicitly checked yet or failed
+            if [[ ! " ${MISSING_DEPENDENCIES[*]} " =~ " php " ]]; then
+                 MISSING_DEPENDENCIES+=("php (required by php-xml)")
+            fi
+            return 1
+        fi
+        # Now check if the xml module is loaded
+        if php -m | grep -q -i xml; then
+            log_info "Dependency check passed: '$command_name' (PHP XML extension) is loaded."
+            return 0
+        else
+            log_error "Dependency missing: '$command_name' (PHP XML extension) is not loaded."
+            log_info "Please install the PHP XML extension package (e.g., '${package_name}', 'php8.2-xml')."
+            MISSING_DEPENDENCIES+=("${command_name} (${package_name})")
+            return 1
+        fi
+    fi
+
+    # Original check for other commands
+    if command -v "$command_name" &> /dev/null; then
+        log_info "Dependency check passed: '$command_name' is available."
+        return 0
     else
-        log_info "Dependency check passed: '${cmd_name}' is available."
+        log_error "Dependency missing: '$command_name'. Please install '${package_name}'."
+        log_info "Example: sudo apt install ${package_name} OR sudo yum install ${package_name}"
+        MISSING_DEPENDENCIES+=("${command_name} (${package_name})")
+        return 1
     fi
 }
 
@@ -1495,43 +1524,51 @@ main() {
 
     # Check core dependencies
     log_header "Checking Core Dependencies" "${CYAN}"
+    declare -gA MISSING_DEPENDENCIES=() # Associative array to store missing deps (name -> package)
+    local dependency_check_failed=0
+
     check_dependency "lscpu"
     check_dependency "free"
-    check_dependency "dmidecode" "dmidecode" # package name might be the same
-    check_dependency "lsb_release" "lsb-release" # package name often lsb-release or similar
+    check_dependency "dmidecode" "dmidecode"
+    check_dependency "lsb_release" "lsb-release"
     check_dependency "lspci" "pciutils"
-    check_dependency "lsblk" "util-linux" # often part of util-linux
-    check_dependency "nproc" "coreutils" # nproc is usually in coreutils
+    check_dependency "lsblk" "util-linux"
+    check_dependency "nproc" "coreutils"
     check_dependency "sysbench"
     check_dependency "fio"
-    check_dependency "jq" # Added for FIO JSON parsing
+    check_dependency "jq"
     check_dependency "git"
-    check_dependency "php" "php-cli" # php-cli is often the package for the PHP CLI
-    check_dependency "php-xml" "php-xml" # Or phpX.Y-xml depending on the system
-    check_dependency "stress-ng" "stress-ng"
-    check_dependency "curl" "curl" # For iperf.fr API and potentially other network tasks
-    # For network_benchmarks
-    check_dependency "iperf3" "iperf3"
-    # speedtest-cli and fast are checked within network_benchmarks, but we ensure they *could* be installed
-    # We don't want the script to exit if only one of them is missing, as the other might be present.
-    # So, we'll use a softer check or rely on the internal check in network_benchmarks.
-    # For now, let's list them so user is aware. The script won't exit if one is missing if the other is found by the function.
-    # A more robust check_dependency could handle "OR" cases or optional dependencies.
-    # Simple check for awareness:
+    check_dependency "php" "php-cli"
+    check_dependency "php-xml" "php-xml" # Handled by special case in check_dependency now
+    check_dependency "stress-ng"
+    check_dependency "curl"
+    check_dependency "iperf3"
+
+    # Optional dependencies check (don't add to MISSING_DEPENDENCIES or fail script)
     if ! command -v speedtest-cli &>/dev/null && ! command -v speedtest &>/dev/null; then
-        log_warn "Optional: 'speedtest-cli' (Ookla) not found. Install with 'sudo apt install speedtest-cli' or from official site."
+        log_warn "Optional dependency 'speedtest-cli' (Ookla) not found."
     else
-        # Check which one it is if we want to pass the exact command name to check_dependency
-        # For now, this warning is sufficient.
-        log_info "Dependency check: 'speedtest-cli' or 'speedtest' seems available."
+        log_info "Optional dependency check: 'speedtest-cli' or 'speedtest' seems available."
     fi
     if ! command -v fast &>/dev/null; then
-        log_warn "Optional: 'fast' (fast-cli) not found. Install with 'npm install --global fast-cli'."
+        log_warn "Optional dependency 'fast' (fast-cli) not found. Install with 'npm install --global fast-cli'."
     else
-        log_info "Dependency check: 'fast' (fast-cli) is available."
+        log_info "Optional dependency check: 'fast' (fast-cli) is available."
     fi
-    # Add more critical dependencies as needed
+
     log_info "-----------------------------------------------------"
+
+    # Check if any mandatory dependencies were missing
+    if [ ${#MISSING_DEPENDENCIES[@]} -gt 0 ]; then
+        log_error "Critical dependencies missing. Cannot continue."
+        log_error "Please install the following packages:"
+        for dep in "${MISSING_DEPENDENCIES[@]}"; do
+            log_error "  - ${dep}"
+        done
+        exit 1
+    else
+        log_success "All critical dependency checks passed."
+    fi
     printf "\n"
 
     # Run benchmark sections

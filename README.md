@@ -57,7 +57,7 @@ Ensure all dependencies listed below are installed on your system before proceed
 *   **Debian/Ubuntu (APT):**
     ```bash
     sudo apt update
-    sudo apt install -y util-linux procps-ng dmidecode lsb-release pciutils coreutils \
+    sudo apt install -y util-linux procps dmidecode lsb-release pciutils coreutils \
                         sysbench fio jq git php-cli php-xml stress-ng curl iperf3 bc \
                         speedtest-cli # For Ookla's speedtest, or download from speedtest.net
     # For fast-cli (Node.js/npm required):
